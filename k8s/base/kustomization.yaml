@@ -18,5 +18,5 @@ commonLabels:
 
 images:
   - name: REPOSITORY/connectivity-microservice
-    newName: DOCKERHUB_USERNAME/connectivity-microservice
+    newName: alejandrodgz/connectivity-microservice
     newTag: latest
