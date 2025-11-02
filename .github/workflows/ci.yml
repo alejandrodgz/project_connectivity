@@ -2,7 +2,7 @@ name: Connectivity Microservice CI
 
 on:
   push:
-    branches: [develop, feature/*]
+    branches: [develop, master, feature/*]
   pull_request:
     branches: [develop, main, master]
 
