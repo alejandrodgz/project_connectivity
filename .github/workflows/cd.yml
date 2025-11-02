@@ -1,0 +1,189 @@
+name: Connectivity Microservice CD
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/connectivity-microservice
+          tags: |
+            type=sha,prefix=main-
+            type=raw,value=latest
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Image digest
+        run: echo ${{ steps.meta.outputs.digest }}
+
+  sonar-tracking:
+    name: SonarCloud Tracking (Main Branch)
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/dev.txt
+
+      - name: Run Tests with Coverage
+        env:
+          SECRET_KEY: test-secret-key-for-ci-only
+          DEBUG: False
+          DJANGO_SETTINGS_MODULE: settings.settings
+        run: |
+          echo "Running unit tests..."
+          pytest apps/ infrastructure/ \
+            --cov=apps \
+            --cov=infrastructure \
+            --cov-report=xml \
+            --verbose || true
+
+      - name: Run Flake8
+        run: |
+          flake8 apps/ infrastructure/ settings/ --output-file=flake8-report.txt --tee || true
+
+      - name: Run Pylint
+        run: |
+          pylint apps/ infrastructure/ --load-plugins=pylint_django --django-settings-module=settings.settings --output=pylint-report.txt --exit-zero || true
+
+      - name: SonarCloud Scan (Main Branch)
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.branch.name=main
+
+  deploy-k8s:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Install Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Update image tag in kustomization
+        run: |
+          cd k8s/overlays/production
+          kustomize edit set image connectivity-microservice=${{ secrets.DOCKERHUB_USERNAME }}/connectivity-microservice:main-${{ github.sha }}
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -k k8s/overlays/production
+
+      - name: Wait for deployment rollout
+        run: |
+          kubectl rollout status deployment/connectivity-service -n connectivity --timeout=5m
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n connectivity
+          kubectl get services -n connectivity
+
+  health-check:
+    name: Post-Deployment Health Check
+    runs-on: ubuntu-latest
+    needs: deploy-k8s
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Wait for service to be ready
+        run: |
+          echo "Waiting for service to stabilize..."
+          sleep 30
+
+      - name: Health Check
+        run: |
+          # Replace with your actual service endpoint
+          HEALTH_URL="${{ secrets.SERVICE_URL }}/health/live"
+          
+          for i in {1..10}; do
+            if curl -f -s "$HEALTH_URL" > /dev/null; then
+              echo "✅ Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i/10 failed, retrying in 10s..."
+            sleep 10
+          done
+          
+          echo "❌ Health check failed after 10 attempts"
+          exit 1
+
+  rollback:
+    name: Rollback on Failure
+    runs-on: ubuntu-latest
+    needs: health-check
+    if: failure() && github.ref == 'refs/heads/main'
+    steps:
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Rollback deployment
+        run: |
+          echo "🔄 Rolling back deployment..."
+          kubectl rollout undo deployment/connectivity-service -n connectivity
+          kubectl rollout status deployment/connectivity-service -n connectivity --timeout=5m
+
+      - name: Notify rollback
+        run: |
+          echo "⚠️ Deployment failed and was rolled back"

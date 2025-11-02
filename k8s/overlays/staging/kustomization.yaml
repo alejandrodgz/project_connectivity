@@ -1,0 +1,49 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: connectivity-staging
+
+bases:
+  - ../../base
+
+nameSuffix: -staging
+
+commonLabels:
+  environment: staging
+
+replicas:
+  - name: connectivity-service
+    count: 2
+  - name: connectivity-document-consumer
+    count: 1
+
+patches:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: connectivity-service
+      spec:
+        template:
+          spec:
+            containers:
+              - name: connectivity-service
+                resources:
+                  requests:
+                    cpu: "150m"
+                    memory: "192Mi"
+                  limits:
+                    cpu: "750m"
+                    memory: "384Mi"
+
+configMapGenerator:
+  - name: connectivity-config
+    behavior: merge
+    literals:
+      - DEBUG=False
+      - LOG_LEVEL=INFO
+      - ALLOWED_HOSTS=staging.connectivity.example.com
+
+images:
+  - name: REPOSITORY/connectivity-microservice
+    newTag: staging-latest
