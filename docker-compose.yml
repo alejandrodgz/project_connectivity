@@ -65,9 +65,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: affiliation-web
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
-    volumes:
-      - .:/app
+    # Let the docker-entrypoint.sh handle migrations and startup
     ports:
       - "8000:8000"
     env_file:
@@ -89,8 +87,6 @@ services:
       dockerfile: Dockerfile
     container_name: affiliation-document-consumer
     command: python manage.py consume_document_auth
-    volumes:
-      - .:/app
     env_file:
       - .env
     depends_on:
@@ -136,9 +132,10 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
     networks:
       - affiliation-network
     depends_on:

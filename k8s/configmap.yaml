@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: connectivity-config
+  namespace: connectivity
+data:
+  # Django settings
+  DJANGO_SETTINGS_MODULE: "settings.settings"
+  DEBUG: "False"
+  ALLOWED_HOSTS: "*"
+  
+  # Database
+  MYSQL_DATABASE: "citizen_affiliation"
+  MYSQL_USER: "connectivity_user"
+  DB_HOST: "mariadb"
+  DB_PORT: "3306"
+  
+  # Redis
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  
+  # RabbitMQ
+  RABBITMQ_HOST: "rabbitmq"
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_USER: "admin"
+  RABBITMQ_EXCHANGE: "citizen_affiliation"
+  RABBITMQ_QUEUE_DOCUMENT_AUTH: "document.authenticated"
+  
+  # External API
+  GOVCARPETA_API_URL: "https://apiprueba.govcarpeta.gov.co"
+  GOVCARPETA_API_KEY: "test-api-key-123"

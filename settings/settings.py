@@ -251,8 +251,8 @@ RABBITMQ_EXCHANGE = env('RABBITMQ_EXCHANGE', default='citizen_affiliation')
 
 # RabbitMQ Queue Names and Routing Keys
 RABBITMQ_AFFILIATION_CHECKED_QUEUE = env('RABBITMQ_AFFILIATION_CHECKED_QUEUE', default='affiliation.checked')
-RABBITMQ_DOCUMENT_AUTH_QUEUE = env('RABBITMQ_DOCUMENT_AUTH_QUEUE', default='document.authentication')
-RABBITMQ_DOCUMENT_AUTH_ROUTING_KEY = env('RABBITMQ_DOCUMENT_AUTH_ROUTING_KEY', default='document.authentication')
+RABBITMQ_DOCUMENT_AUTH_QUEUE = env('RABBITMQ_DOCUMENT_AUTH_QUEUE', default='document.authentication.requested')
+RABBITMQ_DOCUMENT_AUTH_ROUTING_KEY = env('RABBITMQ_DOCUMENT_AUTH_ROUTING_KEY', default='document.authentication.requested')
 
 # ==============================================================================
 # EXTERNAL API CONFIGURATION

@@ -15,7 +15,7 @@ The document authentication service is an **event-driven** microservice that:
 │  Microservice   │       │   Queue          │       │  Consumer       │
 └─────────────────┘       └──────────────────┘       └─────────────────┘
      Publishes                 Routing Key:                   │
-     event                document.authentication             │
+     event         document.authentication.requested          │
                                                                ▼
                                                     ┌──────────────────────┐
                                                     │  Call External API   │
@@ -47,7 +47,7 @@ The document authentication service is an **event-driven** microservice that:
 ## Event Format
 
 ### Input Event (Consumed)
-**Routing Key:** `document.authentication` (configurable)
+**Routing Key:** `document.authentication.requested` (configurable)
 
 ```json
 {
@@ -60,7 +60,7 @@ The document authentication service is an **event-driven** microservice that:
 ### Output Events (Published)
 
 #### Success Event
-**Routing Key:** `document.auth.success`
+**Routing Key:** `document.authentication.ready`
 
 ```json
 {
@@ -114,8 +114,8 @@ RABBITMQ_VHOST=/
 RABBITMQ_EXCHANGE=citizen_affiliation
 
 # Queue and Routing Key (customizable)
-RABBITMQ_DOCUMENT_AUTH_QUEUE=document.authentication
-RABBITMQ_DOCUMENT_AUTH_ROUTING_KEY=document.authentication
+RABBITMQ_DOCUMENT_AUTH_QUEUE=document.authentication.requested
+RABBITMQ_DOCUMENT_AUTH_ROUTING_KEY=document.authentication.requested
 
 # External API
 EXTERNAL_AFFILIATION_API_URL=https://govcarpeta-apis-4905ff3c005b.herokuapp.com
@@ -143,7 +143,7 @@ docker-compose exec web python manage.py consume_document_auth --routing-key doc
 DOCUMENT AUTHENTICATION CONSUMER
 ======================================================================
 
-Listening to routing key: document.authentication
+Listening to routing key: document.authentication.requested
 Exchange: citizen_affiliation
 
 Press CTRL+C to stop
@@ -182,7 +182,7 @@ class DocumentAuthentication(models.Model):
 
 ## Workflow
 
-1. **Receive Event**: Consumer listens to `document.authentication` routing key
+1. **Receive Event**: Consumer listens to `document.authentication.requested` routing key
 2. **Validate Message**: Check required fields (`idCitizen`, `UrlDocument`, `documentTitle`)
 3. **Create Record**: Save initial record with `status='PENDING'`
 4. **Call External API**: PUT to `/apis/authenticateDocument`
@@ -190,7 +190,7 @@ class DocumentAuthentication(models.Model):
    - If 200: `status='SUCCESS'`, `auth_success=True`
    - Otherwise: `status='FAILED'`, `auth_success=False`
 6. **Publish Result**: 
-   - Success: Route to `document.auth.success`
+   - Success: Route to `document.authentication.ready`
    - Failure: Route to `document.auth.failure`
 
 ## Testing
@@ -200,7 +200,7 @@ class DocumentAuthentication(models.Model):
 ```bash
 docker-compose exec rabbitmq rabbitmqadmin publish \
   exchange=citizen_affiliation \
-  routing_key=document.authentication \
+  routing_key=document.authentication.requested \
   payload='{"idCitizen": 1234567890, "UrlDocument": "https://example.com/doc.pdf", "documentTitle": "Test Document"}'
 ```
 
@@ -236,7 +236,8 @@ Password: admin
 ```
 
 Check queues:
-- `document.authentication` - Input queue
+- `document.authentication.requested` - Input queue
+- `document.authentication.ready` - Success output queue
 - Monitor message rates and processing
 
 ## Production Deployment

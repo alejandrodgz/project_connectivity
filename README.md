@@ -326,8 +326,21 @@ EXTERNAL_AFFILIATION_API_KEY=your-api-key
 
 ## 📖 Documentation
 
-For detailed implementation documentation, see:
-- [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) - Complete implementation guide and progress tracking
+All documentation is organized in the `/docs` folder:
+
+- **[📚 Documentation Index](docs/INDEX.md)** - Complete documentation index
+
+### Quick Links
+- **Getting Started**: [Quick Start Guide](docs/QUICK_START.md)
+- **Development**: [Affiliation Implementation](docs/AFFILIATION_IMPLEMENTATION_SUMMARY.md)
+- **Deployment**: [CI/CD Deployment Guide](docs/CICD_DEPLOYMENT_GUIDE.md)
+- **Operations**: [CI/CD Quick Reference](docs/CICD_QUICK_REFERENCE.md)
+- **Kubernetes**: [K8s Local Testing](docs/K8S_LOCAL_TESTING.md)
+- **Security**: [Production User Management](docs/PRODUCTION_USER_MANAGEMENT.md)
+- **Integration**: [Service-to-Service Auth](docs/SERVICE_TO_SERVICE_AUTH.md)
+- **Status**: [Project Status](docs/PROJECT_STATUS.md)
+
+Visit the [Documentation Index](docs/INDEX.md) for a complete list organized by role and category.
 
 ## 🤝 Contributing
 

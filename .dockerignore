@@ -14,6 +14,9 @@ __pycache__
 dist
 build
 
+# Allow docker-entrypoint.sh
+!docker-entrypoint.sh
+
 # Virtual Environment
 venv/
 env/

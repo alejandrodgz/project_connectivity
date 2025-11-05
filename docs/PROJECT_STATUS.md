@@ -30,10 +30,10 @@ A production-ready Django microservice for citizen affiliation checking and docu
 - ✅ 17 unit tests (all passing)
 
 #### Document Authentication Service
-- ✅ RabbitMQ consumer (document.authentication queue)
+- ✅ RabbitMQ consumer (document.authentication.requested queue)
 - ✅ DocumentAuthentication model with status tracking
 - ✅ External API integration (PUT /apis/authenticateDocument)
-- ✅ Event publishing (document.auth.success/failure)
+- ✅ Event publishing (document.authentication.ready/failure)
 - ✅ Dedicated consumer container
 - ✅ 13 unit tests (all passing)
 

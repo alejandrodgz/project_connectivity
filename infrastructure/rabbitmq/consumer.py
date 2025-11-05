@@ -18,16 +18,19 @@ class RabbitMQConsumer:
     
     def __init__(
         self,
+        routing_key: Optional[str] = 'document.authentication.requested',
+        exchange_name: str = 'citizen_affiliation',
         queue_name: Optional[str] = None,
-        routing_key: Optional[str] = 'document.authentication',
         callback: Optional[Callable] = None
     ):
         """
-        Initialize RabbitMQ consumer.
-        
+        Configure RabbitMQ consumer with dynamic routing key.
+
         Args:
+            routing_key: Routing key to listen to (default:
+            'document.authentication.requested')
+            exchange_name: Exchange name
             queue_name: Name of the queue to consume from
-            routing_key: Routing key to bind to
             callback: Function to call when message is received
         """
         self.host = getattr(settings, 'RABBITMQ_HOST', 'localhost')
@@ -40,7 +43,7 @@ class RabbitMQConsumer:
         self.queue_name = queue_name or getattr(
             settings,
             'RABBITMQ_DOCUMENT_AUTH_QUEUE',
-            'document.authentication'
+            'document.authentication.requested'
         )
         self.routing_key = routing_key
         self.callback = callback

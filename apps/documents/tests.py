@@ -142,7 +142,7 @@ class DocumentAuthenticationServiceTestCase(TestCase):
         # Verify event was published
         mock_producer_instance.publish_event.assert_called_once()
         call_args = mock_producer_instance.publish_event.call_args
-        self.assertEqual(call_args.kwargs['routing_key'], 'document.auth.success')
+        self.assertEqual(call_args.kwargs['routing_key'], 'document.authentication.ready')
         self.assertEqual(call_args.kwargs['event_data']['idCitizen'], self.test_data['id_citizen'])
         self.assertTrue(call_args.kwargs['event_data']['authSuccess'])
     
@@ -237,7 +237,7 @@ class DocumentAuthenticationServiceTestCase(TestCase):
         
         # Verify correct routing key was used
         call_args = mock_producer_instance.publish_event.call_args
-        self.assertEqual(call_args.kwargs['routing_key'], 'document.auth.success')
+        self.assertEqual(call_args.kwargs['routing_key'], 'document.authentication.ready')
     
     @patch('apps.documents.services.get_rabbitmq_producer')
     @patch('apps.documents.services.get_govcarpeta_client')

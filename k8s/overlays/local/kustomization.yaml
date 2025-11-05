@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: connectivity-local
+
+resources:
+  - ../../base
+  - nodeport-services.yaml
+
+patches:
+  - path: secret-patch.yaml
+    target:
+      kind: Secret
+      name: connectivity-secrets
+  - path: deployment-patch.yaml
+    target:
+      kind: Deployment
+      name: connectivity-service
+
+nameSuffix: -local
+
+labels:
+  - pairs:
+      environment: local
+
+replicas:
+  - name: connectivity-service
+    count: 1
+  - name: connectivity-document-consumer
+    count: 1
+
+images:
+  - name: REPOSITORY/connectivity-microservice
+    newName: connectivity-microservice
+    newTag: local-latest
+

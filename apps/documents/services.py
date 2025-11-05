@@ -127,7 +127,7 @@ class DocumentAuthenticationService:
         
         # Determine routing key based on success/failure
         if doc_auth.auth_success:
-            routing_key = 'document.auth.success'
+            routing_key = 'document.authentication.ready'
         else:
             routing_key = 'document.auth.failure'
         

@@ -101,62 +101,124 @@ jobs:
           args: >
             -Dsonar.branch.name=main
 
-  deploy-k8s:
-    name: Deploy to Kubernetes
+  deploy-eks:
+    name: Deploy to AWS EKS
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure kubectl
-        uses: azure/k8s-set-context@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          method: kubeconfig
-          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Install Kustomize
-        run: |
-          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          sudo mv kustomize /usr/local/bin/
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
 
-      - name: Update image tag in kustomization
+      - name: Configure kubectl for EKS
         run: |
-          cd k8s/overlays/production
-          kustomize edit set image connectivity-microservice=${{ secrets.DOCKERHUB_USERNAME }}/connectivity-microservice:main-${{ github.sha }}
+          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.EKS_CLUSTER_NAME }}
 
-      - name: Deploy to Kubernetes
+      - name: Update Kubernetes manifests with new image
         run: |
-          kubectl apply -k k8s/overlays/production
+          cd k8s
+          # Update app deployment with new image tag
+          export NEW_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/connectivity-microservice:main-${{ github.sha }}"
+          sed -i "s|image:.*connectivity-microservice.*|image: ${NEW_IMAGE}|g" app.yaml
+
+      - name: Deploy to EKS
+        run: |
+          # Apply configurations in order
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/secrets.yaml
+          
+          # Deploy infrastructure
+          kubectl apply -f k8s/mariadb.yaml
+          kubectl apply -f k8s/redis.yaml
+          kubectl apply -f k8s/rabbitmq.yaml
+          
+          # Wait for infrastructure to be ready
+          echo "Waiting for infrastructure pods..."
+          kubectl wait --for=condition=ready pod -l app=mariadb -n connectivity --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=redis -n connectivity --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=rabbitmq -n connectivity --timeout=300s
+          
+          # Deploy application
+          kubectl apply -f k8s/app.yaml
+          kubectl apply -f k8s/consumer.yaml
 
       - name: Wait for deployment rollout
         run: |
-          kubectl rollout status deployment/connectivity-service -n connectivity --timeout=5m
+          kubectl rollout status deployment/connectivity-app -n connectivity --timeout=5m
+          kubectl rollout status deployment/connectivity-consumer -n connectivity --timeout=5m
 
       - name: Verify deployment
         run: |
+          echo "=== Pods Status ==="
           kubectl get pods -n connectivity
+          echo ""
+          echo "=== Services Status ==="
           kubectl get services -n connectivity
+          echo ""
+          echo "=== Deployments Status ==="
+          kubectl get deployments -n connectivity
 
   health-check:
     name: Post-Deployment Health Check
     runs-on: ubuntu-latest
-    needs: deploy-k8s
-    if: github.ref == 'refs/heads/main'
+    needs: deploy-eks
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl for EKS
+        run: |
+          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.EKS_CLUSTER_NAME }}
+
       - name: Wait for service to be ready
         run: |
           echo "Waiting for service to stabilize..."
           sleep 30
 
-      - name: Health Check
+      - name: Health Check via LoadBalancer
         run: |
-          # Replace with your actual service endpoint
-          HEALTH_URL="${{ secrets.SERVICE_URL }}/health/live"
+          # Get LoadBalancer URL
+          LB_HOSTNAME=$(kubectl get svc connectivity-app-nodeport -n connectivity -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          
+          if [ -z "$LB_HOSTNAME" ]; then
+            echo "Using NodePort for health check..."
+            # Alternative: port-forward for testing
+            kubectl port-forward -n connectivity svc/connectivity-app 8000:8000 &
+            PF_PID=$!
+            sleep 5
+            HEALTH_URL="http://localhost:8000/health/"
+          else
+            HEALTH_URL="http://${LB_HOSTNAME}/health/"
+          fi
+          
+          echo "Checking health at: $HEALTH_URL"
           
           for i in {1..10}; do
             if curl -f -s "$HEALTH_URL" > /dev/null; then
               echo "✅ Health check passed!"
+              [ ! -z "$PF_PID" ] && kill $PF_PID
               exit 0
             fi
             echo "Attempt $i/10 failed, retrying in 10s..."
@@ -164,25 +226,38 @@ jobs:
           done
           
           echo "❌ Health check failed after 10 attempts"
+          [ ! -z "$PF_PID" ] && kill $PF_PID
           exit 1
 
   rollback:
     name: Rollback on Failure
     runs-on: ubuntu-latest
     needs: health-check
-    if: failure() && github.ref == 'refs/heads/main'
+    if: failure() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     steps:
-      - name: Configure kubectl
-        uses: azure/k8s-set-context@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          method: kubeconfig
-          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl for EKS
+        run: |
+          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.EKS_CLUSTER_NAME }}
 
       - name: Rollback deployment
         run: |
           echo "🔄 Rolling back deployment..."
-          kubectl rollout undo deployment/connectivity-service -n connectivity
-          kubectl rollout status deployment/connectivity-service -n connectivity --timeout=5m
+          kubectl rollout undo deployment/connectivity-app -n connectivity
+          kubectl rollout undo deployment/connectivity-consumer -n connectivity
+          kubectl rollout status deployment/connectivity-app -n connectivity --timeout=5m
+          kubectl rollout status deployment/connectivity-consumer -n connectivity --timeout=5m
 
       - name: Notify rollback
         run: |

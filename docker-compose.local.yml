@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  web:
+    ports:
+      - "8000:8000"  # Django application
+    environment:
+      - DEBUG=True
+
+  db:
+    ports:
+      - "3306:3306"  # MariaDB
+
+  redis:
+    ports:
+      - "6379:6379"  # Redis
+
+  rabbitmq:
+    ports:
+      - "5672:5672"   # RabbitMQ AMQP
+      - "15672:15672" # RabbitMQ Management UI
+
+  prometheus:
+    ports:
+      - "9090:9090"  # Prometheus
+
+  grafana:
+    ports:
+      - "3000:3000"  # Grafana

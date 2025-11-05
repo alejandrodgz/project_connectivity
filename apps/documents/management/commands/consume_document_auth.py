@@ -19,8 +19,8 @@ class Command(BaseCommand):
         parser.add_argument(
             '--routing-key',
             type=str,
-            default='document.authentication',
-            help='Routing key to listen to (default: document.authentication)'
+            default='document.authentication.requested',
+            help='Routing key to listen to (default: document.authentication.requested)'
         )
     
     def handle(self, *args, **options):
