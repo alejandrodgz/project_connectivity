@@ -128,9 +128,12 @@ jobs:
       - name: Update Kubernetes manifests with new image
         run: |
           cd k8s
-          # Update app deployment with new image tag
-          export NEW_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/connectivity-microservice:main-${{ github.sha }}"
+          # Update app deployment with new image tag (using short SHA to match docker/metadata-action)
+          export SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          export NEW_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/connectivity-microservice:main-${SHORT_SHA}"
           sed -i "s|image:.*connectivity-microservice.*|image: ${NEW_IMAGE}|g" app.yaml
+          sed -i "s|image:.*connectivity-microservice.*|image: ${NEW_IMAGE}|g" consumer.yaml
+          echo "Updated image to: ${NEW_IMAGE}"
 
       - name: Deploy to EKS
         run: |
