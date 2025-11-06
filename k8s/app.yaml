@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
       - name: app
-        image: connectivity-microservice:local-latest
-        imagePullPolicy: Never
+        image: alejandrodgz/connectivity-microservice:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
         envFrom:

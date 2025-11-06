@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
       - name: consumer
-        image: connectivity-microservice:local-latest
-        imagePullPolicy: Never
+        image: alejandrodgz/connectivity-microservice:latest
+        imagePullPolicy: Always
         command: ["python", "manage.py", "consume_document_auth"]
         envFrom:
         - configMapRef:
