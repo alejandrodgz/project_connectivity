@@ -20,7 +20,7 @@ max_retries=30
 retry_interval=2
 
 for i in $(seq 1 $max_retries); do
-    if python3 -c "import MySQLdb; MySQLdb.connect(host='${DB_HOST}', user='${DB_USER}', passwd='${DB_PASSWORD}', db='${DB_NAME}', port=${DB_PORT:-3306})" 2>/dev/null; then
+    if python3 manage.py check --database default 2>/dev/null; then
         echo "✅ Database is ready!"
         break
     else
@@ -35,7 +35,9 @@ done
 
 # Run database migrations
 echo "📦 Running database migrations..."
-python manage.py migrate --noinput
+# Use --fake-initial to handle cases where tables already exist
+# This is safe and recommended for Docker environments where volumes might persist
+python manage.py migrate --noinput --fake-initial
 
 # Collect static files (if needed in production)
 if [ "$DJANGO_ENV" = "production" ]; then
