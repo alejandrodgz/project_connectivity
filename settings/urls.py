@@ -21,35 +21,23 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
     SpectacularRedocView,
 )
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView,
-)
 
 urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
     
-    # JWT Token endpoints
-    path('api/v1/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/v1/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/v1/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
-    
     # API Documentation
-    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
-    
-    # API v1 - Citizen Validation
-    path('api/v1/citizen/validation/', include('apps.citizen_validation.urls')),
+    path('api/external-connectivity/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/external-connectivity/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/external-connectivity/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
     # External API (for auth-microservice integration)
-    path('api/external/', include('apps.citizen_validation.external_views.external_urlpatterns')),
+    # Auth-microservice calls this with OAuth2 Client Credentials token
+    path('api/external-connectivity/external/', include('apps.citizen_validation.urls')),
     
     # Health check
-    path('health/', include('health_check.urls')),
+    path('api/external-connectivity/health/', include('health_check.urls')),
     
     # Prometheus metrics
-    path('', include('django_prometheus.urls')),
+    path('api/external-connectivity/metrics/', include('django_prometheus.urls')),
 ]

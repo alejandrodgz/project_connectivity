@@ -57,7 +57,7 @@ class RabbitMQProducer:
         Publish an event to RabbitMQ.
         
         Args:
-            routing_key: Routing key for the message (e.g., 'affiliation.checked')
+            routing_key: Routing key for the message (e.g., 'document.authenticated')
             event_data: Event data dictionary to publish
         """
         try:

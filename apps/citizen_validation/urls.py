@@ -1,19 +1,10 @@
 """
-URL configuration for citizen validation.
+URL patterns for external API endpoints.
 """
 
 from django.urls import path
-from .views import CitizenValidationView
-from .external_views import check_citizen_exists
+from . import external_views
 
-app_name = 'citizen_validation'
-
-# Internal API endpoints (require JWT authentication)
 urlpatterns = [
-    path('check/', CitizenValidationView.as_view(), name='check'),
-]
-
-# External API endpoints (require OAuth2 Client Credentials from auth-microservice)
-external_urlpatterns = [
-    path('citizen/<int:idCitizen>', check_citizen_exists, name='external-check-citizen'),
+    path('citizens/<int:idCitizen>/exists/', external_views.check_citizen_exists, name='check-citizen-exists'),
 ]

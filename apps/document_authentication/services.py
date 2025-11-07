@@ -31,6 +31,8 @@ class DocumentAuthenticationService:
     
     def process_authentication_request(
         self,
+        message_id: str,
+        document_id: str,
         id_citizen: int,
         url_document: str,
         document_title: str
@@ -38,15 +40,27 @@ class DocumentAuthenticationService:
         """
         Forward document authentication to external centralizer.
         
-        Workflow:
-        1. Create trace record
-        2. Forward to external API
-        3. Update trace
-        4. Publish result event
-        """
-        logger.info(f"Forwarding authentication for citizen {id_citizen}: {document_title}")
+        IDEMPOTENCY: Uses message_id to prevent duplicate processing.
         
+        Workflow:
+        1. Check idempotency (message_id)
+        2. Create trace record
+        3. Forward to external API
+        4. Update trace
+        5. Publish result event
+        """
+        logger.info(f"Processing authentication for document {document_id}, citizen {id_citizen}")
+        
+        # IDEMPOTENCY CHECK
+        existing = DocumentAuthenticationTrace.objects.filter(message_id=message_id).first()
+        if existing:
+            logger.info(f"Message {message_id} already processed, status: {existing.status}")
+            return existing
+        
+        # Create trace record
         trace = DocumentAuthenticationTrace.objects.create(
+            message_id=message_id,
+            document_id=document_id,
             id_citizen=id_citizen,
             document_title=document_title,
             status='PENDING'
@@ -60,37 +74,55 @@ class DocumentAuthenticationService:
             )
             
             success = api_response['success'] and api_response['status_code'] == 200
-            trace.mark_as_sent(
+            result_message = api_response.get('message', 'Authentication completed')
+            
+            trace.mark_as_authenticated(
                 status_code=api_response['status_code'],
-                success=success
+                success=success,
+                message=result_message
             )
             
-            logger.info(f"Authentication request sent for citizen {id_citizen}, success: {success}")
+            logger.info(f"Document {document_id} authenticated, success: {success}")
             
-            self._publish_result_event(trace, url_document)
+            self._publish_result_event(trace)
             return trace
             
         except Exception as e:
-            logger.error(f"Error forwarding authentication for citizen {id_citizen}: {str(e)}", exc_info=True)
+            logger.error(f"Error authenticating document {document_id}: {str(e)}", exc_info=True)
             trace.mark_as_error(error_message=str(e))
             
             try:
-                self._publish_result_event(trace, url_document)
+                self._publish_result_event(trace)
             except Exception as publish_error:
                 logger.error(f"Failed to publish error event: {str(publish_error)}")
             
             raise
     
-    def _publish_result_event(self, trace: DocumentAuthenticationTrace, url_document: str):
-        """Publish authentication result to RabbitMQ."""
+    def _publish_result_event(self, trace: DocumentAuthenticationTrace):
+        """
+        Publish authentication result to RabbitMQ.
+        
+        Event format matches what document-management expects:
+        {
+            "messageId": "uuid",
+            "documentId": "doc-123",
+            "idCitizen": 12345678,
+            "authenticated": true/false,
+            "message": "Authentication result message",
+            "authenticatedAt": "2025-11-07T18:28:36.788Z"
+        }
+        """
         event_data = {
+            "messageId": trace.message_id,
+            "documentId": trace.document_id,
             "idCitizen": trace.id_citizen,
-            "UrlDocument": url_document,
-            "documentTitle": trace.document_title,
-            "authSuccess": trace.auth_success
+            "authenticated": trace.authenticated,
+            "message": trace.message or ("Authentication successful" if trace.authenticated else "Authentication failed"),
+            "authenticatedAt": trace.authenticated_at.isoformat() if trace.authenticated_at else timezone.now().isoformat()
         }
         
-        routing_key = 'document.authentication.ready' if trace.auth_success else 'document.auth.failure'
+        # Use single routing key for all results
+        routing_key = 'document.authentication.completed'
         
         try:
             self.rabbitmq_producer.publish_event(
@@ -98,7 +130,7 @@ class DocumentAuthenticationService:
                 event_data=event_data
             )
             trace.mark_event_published()
-            logger.info(f"Published {routing_key} for citizen {trace.id_citizen}")
+            logger.info(f"Published authentication result for document {trace.document_id}")
         except Exception as e:
             logger.error(f"Failed to publish event: {str(e)}", exc_info=True)
             raise

@@ -1,5 +1,5 @@
 """
-Django settings for Citizen Affiliation Microservice.
+Django settings for External Connectivity Microservice.
 
 This configuration uses environment variables for all sensitive data
 and deployment-specific settings, following cloud-native best practices.
@@ -47,8 +47,6 @@ INSTALLED_APPS = [
     
     # Third-party apps
     'rest_framework',
-    'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'django_prometheus',
     'drf_spectacular',
@@ -121,7 +119,7 @@ CACHES = {
                 'retry_on_timeout': True,
             }
         },
-        'KEY_PREFIX': 'affiliation',
+        'KEY_PREFIX': 'connectivity',
         'TIMEOUT': 300,
     }
 }
@@ -162,12 +160,8 @@ X_FRAME_OPTIONS = 'DENY'
 # ==============================================================================
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [],
+    'DEFAULT_PERMISSION_CLASSES': [],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_RENDERER_CLASSES': [
@@ -189,24 +183,11 @@ REST_FRAMEWORK = {
 }
 
 # ==============================================================================
-# JWT CONFIGURATION
+# OAUTH2 CLIENT CREDENTIALS CONFIGURATION
 # ==============================================================================
-
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=env.int('JWT_ACCESS_TOKEN_MINUTES', default=15)),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=env.int('JWT_REFRESH_TOKEN_DAYS', default=7)),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'UPDATE_LAST_LOGIN': True,
-    'ALGORITHM': 'HS256',
-    'SIGNING_KEY': env('JWT_SECRET_KEY', default=SECRET_KEY),
-    'AUTH_HEADER_TYPES': ('Bearer',),
-    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
-    'USER_ID_FIELD': 'id',
-    'USER_ID_CLAIM': 'user_id',
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-    'TOKEN_TYPE_CLAIM': 'token_type',
-}
+# JWT validation for OAuth2 Client Credentials from auth-microservice
+AUTH_SERVICE_JWT_SECRET = env('AUTH_SERVICE_JWT_SECRET', default='shared-secret-with-auth-service')
+AUTH_SERVICE_JWT_ALGORITHM = env('AUTH_SERVICE_JWT_ALGORITHM', default='HS256')
 
 # ==============================================================================
 # CORS CONFIGURATION
@@ -246,10 +227,9 @@ RABBITMQ_PORT = env.int('RABBITMQ_PORT', default=5672)
 RABBITMQ_USER = env('RABBITMQ_USER', default='guest')
 RABBITMQ_PASSWORD = env('RABBITMQ_PASSWORD', default='guest')
 RABBITMQ_VHOST = env('RABBITMQ_VHOST', default='/')
-RABBITMQ_EXCHANGE = env('RABBITMQ_EXCHANGE', default='citizen_affiliation')
+RABBITMQ_EXCHANGE = env('RABBITMQ_EXCHANGE', default='connectivity')
 
 # RabbitMQ Queue Names and Routing Keys
-RABBITMQ_AFFILIATION_CHECKED_QUEUE = env('RABBITMQ_AFFILIATION_CHECKED_QUEUE', default='affiliation.checked')
 RABBITMQ_DOCUMENT_AUTH_QUEUE = env('RABBITMQ_DOCUMENT_AUTH_QUEUE', default='document.authentication.requested')
 RABBITMQ_DOCUMENT_AUTH_ROUTING_KEY = env('RABBITMQ_DOCUMENT_AUTH_ROUTING_KEY', default='document.authentication.requested')
 RABBITMQ_AUTH_USER_REGISTERED_QUEUE = env('RABBITMQ_AUTH_USER_REGISTERED_QUEUE', default='auth.user.registered')
@@ -259,8 +239,8 @@ RABBITMQ_AUTH_USER_REGISTERED_ROUTING_KEY = env('RABBITMQ_AUTH_USER_REGISTERED_R
 # EXTERNAL API CONFIGURATION
 # ==============================================================================
 
-EXTERNAL_AFFILIATION_API_URL = env('EXTERNAL_AFFILIATION_API_URL', default='https://govcarpeta-apis-4905ff3c005b.herokuapp.com')
-EXTERNAL_AFFILIATION_API_KEY = env('EXTERNAL_AFFILIATION_API_KEY', default='')
+EXTERNAL_GOVCARPETA_API_URL = env('EXTERNAL_GOVCARPETA_API_URL', default='https://govcarpeta-apis-4905ff3c005b.herokuapp.com')
+EXTERNAL_GOVCARPETA_API_KEY = env('EXTERNAL_GOVCARPETA_API_KEY', default='')
 EXTERNAL_API_TIMEOUT = env.int('EXTERNAL_API_TIMEOUT', default=30)
 
 # ==============================================================================
@@ -277,8 +257,8 @@ AUTH_SERVICE_JWT_ALGORITHM = env('AUTH_SERVICE_JWT_ALGORITHM', default='HS256')
 # ==============================================================================
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Citizen Affiliation Microservice API',
-    'DESCRIPTION': 'API for checking citizen affiliation eligibility and authenticating documents',
+    'TITLE': 'External Connectivity Microservice API',
+    'DESCRIPTION': 'Proxy microservice for external centralizer integration: citizen validation, registration, and document authentication',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,

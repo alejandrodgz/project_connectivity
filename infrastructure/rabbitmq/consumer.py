@@ -18,35 +18,25 @@ class RabbitMQConsumer:
     
     def __init__(
         self,
-        routing_key: Optional[str] = 'document.authentication.requested',
-        exchange_name: str = 'citizen_affiliation',
-        queue_name: Optional[str] = None,
-        callback: Optional[Callable] = None
+        queue_name: str,
+        routing_key: str
     ):
         """
-        Configure RabbitMQ consumer with dynamic routing key.
+        Configure RabbitMQ consumer.
 
         Args:
-            routing_key: Routing key to listen to (default:
-            'document.authentication.requested')
-            exchange_name: Exchange name
             queue_name: Name of the queue to consume from
-            callback: Function to call when message is received
+            routing_key: Routing key to listen to
         """
-        self.host = getattr(settings, 'RABBITMQ_HOST', 'localhost')
-        self.port = getattr(settings, 'RABBITMQ_PORT', 5672)
-        self.username = getattr(settings, 'RABBITMQ_USER', 'guest')
-        self.password = getattr(settings, 'RABBITMQ_PASSWORD', 'guest')
-        self.vhost = getattr(settings, 'RABBITMQ_VHOST', '/')
-        self.exchange = getattr(settings, 'RABBITMQ_EXCHANGE', 'citizen_affiliation')
+        self.host = settings.RABBITMQ_HOST
+        self.port = settings.RABBITMQ_PORT
+        self.username = settings.RABBITMQ_USER
+        self.password = settings.RABBITMQ_PASSWORD
+        self.vhost = settings.RABBITMQ_VHOST
+        self.exchange = settings.RABBITMQ_EXCHANGE
         
-        self.queue_name = queue_name or getattr(
-            settings,
-            'RABBITMQ_DOCUMENT_AUTH_QUEUE',
-            'document.authentication.requested'
-        )
+        self.queue_name = queue_name
         self.routing_key = routing_key
-        self.callback = callback
         
         self.connection = None
         self.channel = None
@@ -91,6 +81,15 @@ class RabbitMQConsumer:
             f"Routing key: {self.routing_key}"
         )
     
+    def process_message(self, body: dict):
+        """
+        Override this method in subclasses to process messages.
+        
+        Args:
+            body: Parsed message body as dict
+        """
+        raise NotImplementedError("Subclasses must implement process_message()")
+    
     def on_message(self, ch, method, properties, body):
         """
         Callback for when a message is received.
@@ -105,27 +104,20 @@ class RabbitMQConsumer:
             # Parse message
             message = json.loads(body.decode('utf-8'))
             
-            logger.info(
-                f"Received message from queue {self.queue_name}: {message}"
-            )
+            logger.info(f"Received message from queue {self.queue_name}")
             
-            # Call user-defined callback
-            if self.callback:
-                self.callback(message)
+            # Call subclass implementation
+            self.process_message(message)
             
             # Acknowledge message
             ch.basic_ack(delivery_tag=method.delivery_tag)
             
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse message JSON: {str(e)}")
-            # Reject and requeue
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
             
         except Exception as e:
-            logger.error(
-                f"Error processing message: {str(e)}",
-                exc_info=True
-            )
+            logger.error(f"Error processing message: {str(e)}", exc_info=True)
             # Reject and requeue (will retry)
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
     
@@ -166,26 +158,3 @@ class RabbitMQConsumer:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop_consuming()
-
-
-def create_document_auth_consumer(callback: Callable) -> RabbitMQConsumer:
-    """
-    Create a consumer for document authentication events.
-    
-    Args:
-        callback: Function to call when message is received.
-                  Should accept a dict parameter: callback(message: dict)
-    
-    Returns:
-        RabbitMQConsumer: Configured consumer instance
-    """
-    routing_key = getattr(
-        settings,
-        'RABBITMQ_DOCUMENT_AUTH_ROUTING_KEY',
-        'document.authentication'
-    )
-    
-    return RabbitMQConsumer(
-        routing_key=routing_key,
-        callback=callback
-    )

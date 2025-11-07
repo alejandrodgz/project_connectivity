@@ -15,8 +15,8 @@ class GovcarpetaAPIClient(BaseAPIClient):
 
     def __init__(self):
         """Initialize the Govcarpeta API client with settings from Django config."""
-        base_url = settings.EXTERNAL_AFFILIATION_API_URL
-        api_key = settings.EXTERNAL_AFFILIATION_API_KEY
+        base_url = settings.EXTERNAL_GOVCARPETA_API_URL
+        api_key = settings.EXTERNAL_GOVCARPETA_API_KEY
         timeout = settings.EXTERNAL_API_TIMEOUT
         
         super().__init__(base_url=base_url, timeout=timeout, api_key=api_key)

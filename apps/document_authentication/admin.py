@@ -6,11 +6,11 @@ from .models import DocumentAuthenticationTrace
 class DocumentAuthenticationTraceAdmin(admin.ModelAdmin):
     """Admin for document authentication communication traces."""
     
-    list_display = ['id_citizen', 'document_title', 'status', 'auth_success', 
-                   'received_at', 'sent_at', 'event_published_at']
-    list_filter = ['status', 'auth_success', 'received_at']
-    search_fields = ['id_citizen', 'document_title']
-    readonly_fields = ['id_citizen', 'document_title', 'status', 'auth_success',
-                      'received_at', 'sent_at', 'event_published_at',
-                      'external_api_status_code', 'error_message']
+    list_display = ['document_id', 'id_citizen', 'document_title', 'status', 'authenticated', 
+                   'received_at', 'authenticated_at']
+    list_filter = ['status', 'authenticated', 'received_at']
+    search_fields = ['message_id', 'document_id', 'id_citizen', 'document_title']
+    readonly_fields = ['message_id', 'document_id', 'id_citizen', 'document_title', 
+                      'status', 'authenticated', 'message', 'received_at', 'authenticated_at', 
+                      'event_published_at', 'external_api_status_code']
     ordering = ['-received_at']

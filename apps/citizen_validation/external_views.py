@@ -79,3 +79,4 @@ def check_citizen_exists(request, idCitizen):
             {'error': 'Internal server error'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
