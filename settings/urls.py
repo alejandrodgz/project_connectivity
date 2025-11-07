@@ -41,8 +41,11 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
-    # API v1
-    path('api/v1/affiliation/', include('apps.affiliation.urls')),
+    # API v1 - Citizen Validation
+    path('api/v1/citizen/validation/', include('apps.citizen_validation.urls')),
+    
+    # External API (for auth-microservice integration)
+    path('api/external/', include('apps.citizen_validation.external_views.external_urlpatterns')),
     
     # Health check
     path('health/', include('health_check.urls')),

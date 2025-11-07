@@ -56,11 +56,10 @@ INSTALLED_APPS = [
     'health_check.db',
     'health_check.cache',
     
-    # Local apps
-    'apps.affiliation',
-    'apps.authentication',
-    'apps.documents',
-    'apps.core',
+    # Local apps (3 core functions)
+    'apps.citizen_validation',      # Function #1: Validate citizen existence
+    'apps.citizen_registration',    # Function #2: Register citizen in centralizer
+    'apps.document_authentication', # Function #3: Authenticate documents
 ]
 
 MIDDLEWARE = [
@@ -253,6 +252,8 @@ RABBITMQ_EXCHANGE = env('RABBITMQ_EXCHANGE', default='citizen_affiliation')
 RABBITMQ_AFFILIATION_CHECKED_QUEUE = env('RABBITMQ_AFFILIATION_CHECKED_QUEUE', default='affiliation.checked')
 RABBITMQ_DOCUMENT_AUTH_QUEUE = env('RABBITMQ_DOCUMENT_AUTH_QUEUE', default='document.authentication.requested')
 RABBITMQ_DOCUMENT_AUTH_ROUTING_KEY = env('RABBITMQ_DOCUMENT_AUTH_ROUTING_KEY', default='document.authentication.requested')
+RABBITMQ_AUTH_USER_REGISTERED_QUEUE = env('RABBITMQ_AUTH_USER_REGISTERED_QUEUE', default='auth.user.registered')
+RABBITMQ_AUTH_USER_REGISTERED_ROUTING_KEY = env('RABBITMQ_AUTH_USER_REGISTERED_ROUTING_KEY', default='auth.user.registered')
 
 # ==============================================================================
 # EXTERNAL API CONFIGURATION
@@ -261,6 +262,15 @@ RABBITMQ_DOCUMENT_AUTH_ROUTING_KEY = env('RABBITMQ_DOCUMENT_AUTH_ROUTING_KEY', d
 EXTERNAL_AFFILIATION_API_URL = env('EXTERNAL_AFFILIATION_API_URL', default='https://govcarpeta-apis-4905ff3c005b.herokuapp.com')
 EXTERNAL_AFFILIATION_API_KEY = env('EXTERNAL_AFFILIATION_API_KEY', default='')
 EXTERNAL_API_TIMEOUT = env.int('EXTERNAL_API_TIMEOUT', default=30)
+
+# ==============================================================================
+# AUTH MICROSERVICE INTEGRATION (OAuth2 Client Credentials)
+# ==============================================================================
+
+# JWT secret key shared with auth-microservice for token validation
+# IMPORTANT: This MUST be the same secret used by auth-microservice to sign tokens
+AUTH_SERVICE_JWT_SECRET = env('AUTH_SERVICE_JWT_SECRET', default=SECRET_KEY)
+AUTH_SERVICE_JWT_ALGORITHM = env('AUTH_SERVICE_JWT_ALGORITHM', default='HS256')
 
 # ==============================================================================
 # API DOCUMENTATION (DRF-Spectacular)
