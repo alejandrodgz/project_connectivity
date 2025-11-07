@@ -102,25 +102,13 @@ WSGI_APPLICATION = 'settings.wsgi.application'
 DATABASES = {'default': env.db('DATABASE_URL', default='sqlite:///db.sqlite3')}
 
 # ==============================================================================
-# CACHE CONFIGURATION (Redis)
+# CACHE CONFIGURATION
 # ==============================================================================
 
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': f"redis://{env('REDIS_HOST', default='localhost')}:{env.int('REDIS_PORT', default=6379)}/{env.int('REDIS_DB', default=0)}",
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'PASSWORD': env('REDIS_PASSWORD', default=None),
-            'SOCKET_CONNECT_TIMEOUT': 5,
-            'SOCKET_TIMEOUT': 5,
-            'CONNECTION_POOL_KWARGS': {
-                'max_connections': 50,
-                'retry_on_timeout': True,
-            }
-        },
-        'KEY_PREFIX': 'connectivity',
-        'TIMEOUT': 300,
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'connectivity-cache',
     }
 }
 

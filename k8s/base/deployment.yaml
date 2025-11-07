@@ -33,13 +33,13 @@ spec:
                 name: connectivity-secrets
           startupProbe:
             httpGet:
-              path: /api/connectivity/health
+              path: /api/connectivity/health/
               port: http
             failureThreshold: 60
             periodSeconds: 2
           readinessProbe:
             httpGet:
-              path: /api/connectivity/health
+              path: /api/connectivity/health/
               port: http
             initialDelaySeconds: 10
             periodSeconds: 10
@@ -47,7 +47,7 @@ spec:
             failureThreshold: 6
           livenessProbe:
             httpGet:
-              path: /api/connectivity/health
+              path: /api/connectivity/health/
               port: http
             initialDelaySeconds: 20
             periodSeconds: 10
