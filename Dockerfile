@@ -1,66 +1,56 @@
-# Multi-stage build for Django application
-
 # Build stage
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim as builder
 
 WORKDIR /app
 
-# Install system dependencies for MySQL and build tools
-RUN apt-get update && apt-get install -y \
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    default-libmysqlclient-dev \
-    pkg-config \
+    postgresql-client \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY requirements/base.txt requirements/
+COPY requirements/base.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements/base.txt
+RUN pip install --no-cache-dir --user -r base.txt
 
-# Runtime stage
+# Final stage
 FROM python:3.12-slim
 
 WORKDIR /app
 
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    default-libmysqlclient-dev \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependencies from builder
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Copy Python dependencies from builder
+COPY --from=builder /root/.local /root/.local
 
-# Copy application
+# Make sure scripts in .local are usable
+ENV PATH=/root/.local/bin:$PATH
+
+# Copy application code
 COPY . .
 
-# Copy and set permissions for entrypoint
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
 # Create logs directory
-RUN mkdir -p logs
+RUN mkdir -p logs && chmod 777 logs
 
 # Create non-root user
-RUN useradd -m -u 1000 django && \
-    chown -R django:django /app
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
 
-USER django
-
-# Ensure we're in the app directory
-WORKDIR /app
+USER appuser
 
 # Expose port
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD python -c "import requests; requests.get('http://localhost:8000/health/')" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/api/external-connectivity/health/ || exit 1
 
-# Set entrypoint
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-
-# Run application with gunicorn in production
-CMD ["gunicorn", "settings.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "60"]
+# Run gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "settings.wsgi:application"]

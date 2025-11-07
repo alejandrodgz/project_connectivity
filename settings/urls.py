@@ -27,17 +27,17 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     
     # API Documentation
-    path('api/external-connectivity/schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('api/external-connectivity/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path('api/external-connectivity/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    path('api/connectivity/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/connectivity/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/connectivity/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
     # External API (for auth-microservice integration)
     # Auth-microservice calls this with OAuth2 Client Credentials token
-    path('api/external-connectivity/external/', include('apps.citizen_validation.urls')),
+    path('api/connectivity/external/', include('apps.citizen_validation.urls')),
     
     # Health check
-    path('api/external-connectivity/health/', include('health_check.urls')),
+    path('api/connectivity/health/', include('health_check.urls')),
     
     # Prometheus metrics
-    path('api/external-connectivity/metrics/', include('django_prometheus.urls')),
+    path('api/connectivity/metrics/', include('django_prometheus.urls')),
 ]
