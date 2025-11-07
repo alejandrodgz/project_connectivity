@@ -39,5 +39,5 @@ urlpatterns = [
     path('api/connectivity/health/', include('health_check.urls')),
     
     # Prometheus metrics
-    path('api/connectivity/metrics/', include('django_prometheus.urls')),
+    path('api/connectivity/', include('django_prometheus.urls')),
 ]
