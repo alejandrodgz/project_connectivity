@@ -21,6 +21,21 @@ spec:
         app: connectivity-service
     spec:
       serviceAccountName: connectivity-sa
+      initContainers:
+        - name: run-migrations
+          image: REPOSITORY/connectivity-microservice:TAG
+          imagePullPolicy: Always
+          command: ['python', 'manage.py', 'migrate', '--noinput']
+          envFrom:
+            - secretRef:
+                name: connectivity-secrets
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
       containers:
         - name: connectivity-service
           image: REPOSITORY/connectivity-microservice:TAG
